@@ -11,106 +11,58 @@ class PatientHistoryPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("History"),
+        title: const Text("Patient History"),
         backgroundColor: Colors.blue,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('appointments')
+            .collection('prescriptions')
             .where('patientId', isEqualTo: patientId)
-            .where('status', isEqualTo: 'completed')
+            .orderBy('createdAt', descending: true)
             .snapshots(),
-        builder: (context, appointmentSnapshot) {
-          if (appointmentSnapshot.connectionState == ConnectionState.waiting) {
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!appointmentSnapshot.hasData ||
-              appointmentSnapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No completed history"));
+          if (snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No history found"));
           }
 
-          final appointments = appointmentSnapshot.data!.docs;
+          final prescriptions = snapshot.data!.docs;
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
-            itemCount: appointments.length,
+            itemCount: prescriptions.length,
             itemBuilder: (context, index) {
-              final appointmentData =
-                  appointments[index].data() as Map<String, dynamic>;
+              final data = prescriptions[index].data() as Map<String, dynamic>;
 
-              final doctorId = appointmentData['doctorId'];
-
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('doctor_profile')
-                    .doc(doctorId)
-                    .get(),
-                builder: (context, doctorSnapshot) {
-                  if (doctorSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(child: CircularProgressIndicator()),
+              return Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 3,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data['doctorName'] ?? 'Doctor',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    );
-                  }
-
-                  final doctorData =
-                      doctorSnapshot.data?.data() as Map<String, dynamic>?;
-
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 3,
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          /// Doctor Name
-                          Text(
-                            appointmentData['doctorName'] ?? 'Doctor',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          /// Degree
-                          Text("Degree: ${doctorData?['degree'] ?? 'N/A'}"),
-
-                          /// Phone
-                          Text("Contact: ${doctorData?['phone'] ?? 'N/A'}"),
-
-                          const Divider(height: 20),
-
-                          /// Diagnosis
-                          Text(
-                            "Diagnosis: ${appointmentData['diagnosis'] ?? 'N/A'}",
-                          ),
-
-                          /// Prescription
-                          Text(
-                            "Prescription: ${appointmentData['prescription'] ?? 'N/A'}",
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          /// Date & Time
-                          Text(
-                            "${appointmentData['date']} • ${appointmentData['time']}",
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                      const Divider(),
+                      Text("Diagnosis: ${data['disease'] ?? 'N/A'}"),
+                      Text("Medicines: ${data['medicines'] ?? 'N/A'}"),
+                      Text("Dosage: ${data['dosage'] ?? 'N/A'}"),
+                      Text("Consultation Fee: ₹${data['fee'] ?? 0}"),
+                    ],
+                  ),
+                ),
               );
             },
           );

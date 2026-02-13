@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'telemedicineapp-9bc1b.firebasestorage.app',
     measurementId: 'G-ZR6HYCPMZQ',
   );
+
 }

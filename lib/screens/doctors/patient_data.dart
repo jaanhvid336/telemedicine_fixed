@@ -11,14 +11,13 @@ class DoctorHistoryPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Patient History"),
+        title: const Text("Doctor History"),
         backgroundColor: Colors.blue,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('appointments')
+            .collection('prescriptions')
             .where('doctorId', isEqualTo: doctorId)
-            .where('status', isEqualTo: 'completed')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -26,17 +25,16 @@ class DoctorHistoryPage extends StatelessWidget {
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No completed patients"));
+            return const Center(child: Text("No history found"));
           }
 
-          final completedAppointments = snapshot.data!.docs;
+          final prescriptions = snapshot.data!.docs;
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
-            itemCount: completedAppointments.length,
+            itemCount: prescriptions.length,
             itemBuilder: (context, index) {
-              final data =
-                  completedAppointments[index].data() as Map<String, dynamic>;
+              final data = prescriptions[index].data() as Map<String, dynamic>;
 
               return Card(
                 shape: RoundedRectangleBorder(
@@ -49,7 +47,6 @@ class DoctorHistoryPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      /// Patient Name
                       Text(
                         data['patientName'] ?? 'Patient',
                         style: const TextStyle(
@@ -57,21 +54,11 @@ class DoctorHistoryPage extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
-                      const SizedBox(height: 6),
-
-                      /// Diagnosis
-                      Text("Diagnosis: ${data['diagnosis'] ?? 'N/A'}"),
-
-                      const SizedBox(height: 6),
-
-                      /// Fee
-                      Text("Consultation Fee: ₹${data['fee'] ?? '0'}"),
-
-                      const SizedBox(height: 6),
-
-                      /// Date & Time
-                      Text("${data['date']} • ${data['time']}"),
+                      const Divider(),
+                      Text("Diagnosis: ${data['disease'] ?? 'N/A'}"),
+                      Text("Medicines: ${data['medicines'] ?? 'N/A'}"),
+                      Text("Dosage: ${data['dosage'] ?? 'N/A'}"),
+                      Text("Consultation Fee: ₹${data['fee'] ?? 0}"),
                     ],
                   ),
                 ),

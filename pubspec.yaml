@@ -1,11 +1,11 @@
 name: telemedicine_fixed
-description: "A new Flutter project."
+description: A new Flutter project.
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.2
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -14,8 +14,10 @@ dependencies:
   firebase_core: ^2.27.0
   firebase_auth: ^4.17.0
   cloud_firestore: ^4.15.0
-  path_provider: ^2.1.2
+
+  image_gallery_saver: ^2.0.3
   permission_handler: ^11.3.1
+  path_provider: ^2.1.2
 
 dev_dependencies:
   flutter_test:

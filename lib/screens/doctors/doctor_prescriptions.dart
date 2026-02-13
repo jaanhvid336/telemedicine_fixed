@@ -22,25 +22,31 @@ class _DoctorPrescriptionsPageState extends State<DoctorPrescriptionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final doctorId = FirebaseAuth.instance.currentUser!.uid;
+    final doctor = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Add Prescription"),
         backgroundColor: Colors.blue,
       ),
+
+      /// ✅ FIXED OVERFLOW WITH SCROLL
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            /// 🔥 SELECT PATIENT (ACCEPTED APPOINTMENTS)
+            /// ================= SELECT ACCEPTED PATIENT =================
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('appointments')
-                  .where('doctorId', isEqualTo: doctorId)
+                  .where('doctorId', isEqualTo: doctor!.uid)
                   .where('status', isEqualTo: 'accepted')
                   .snapshots(),
               builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                }
+
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Text("No accepted patients found");
                 }
@@ -55,8 +61,8 @@ class _DoctorPrescriptionsPageState extends State<DoctorPrescriptionsPage> {
                     final data = doc.data() as Map<String, dynamic>;
 
                     return DropdownMenuItem<String>(
-                      value: doc.id, // 🔥 use appointmentId
-                      child: Text(data['patientName'] ?? "Patient"),
+                      value: doc.id,
+                      child: Text(data['patientName']),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -130,35 +136,76 @@ class _DoctorPrescriptionsPageState extends State<DoctorPrescriptionsPage> {
                     return;
                   }
 
-                  /// 🔥 UPDATE APPOINTMENT (IMPORTANT)
-                  await FirebaseFirestore.instance
-                      .collection('appointments')
-                      .doc(selectedAppointmentId)
-                      .update({
-                        'diagnosis': diseaseController.text,
-                        'prescription': medicineController.text,
-                        'dosage': dosageController.text,
-                        'fee': feeController.text,
-                        'status': 'completed', // 🔥 THIS FIXES HISTORY
-                        'completedAt': Timestamp.now(),
-                      });
+                  if (diseaseController.text.isEmpty ||
+                      medicineController.text.isEmpty ||
+                      dosageController.text.isEmpty ||
+                      feeController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Fill all fields")),
+                    );
+                    return;
+                  }
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Prescription Saved & Appointment Completed",
+                  try {
+                    /// 🔥 FETCH DOCTOR NAME
+                    final doctorProfile = await FirebaseFirestore.instance
+                        .collection('doctor_profile')
+                        .where('uid', isEqualTo: doctor.uid)
+                        .limit(1)
+                        .get();
+
+                    String doctorName = "Doctor";
+
+                    if (doctorProfile.docs.isNotEmpty) {
+                      doctorName = doctorProfile.docs.first['name'];
+                    }
+
+                    /// SAVE PRESCRIPTION
+                    await FirebaseFirestore.instance
+                        .collection('prescriptions')
+                        .add({
+                      'doctorId': doctor.uid,
+                      'doctorName': doctorName,
+                      'doctorEmail': doctor.email,
+                      'patientId': selectedPatientId,
+                      'patientName': selectedPatientName,
+                      'disease': diseaseController.text.trim(),
+                      'medicines': medicineController.text.trim(),
+                      'dosage': dosageController.text.trim(),
+                      'fee': int.parse(feeController.text),
+                      'createdAt': Timestamp.now(),
+                    });
+
+                    /// UPDATE APPOINTMENT STATUS
+                    await FirebaseFirestore.instance
+                        .collection('appointments')
+                        .doc(selectedAppointmentId)
+                        .update({
+                      'status': 'completed',
+                      'completedAt': Timestamp.now(),
+                    });
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Prescription Saved Successfully"),
                       ),
-                    ),
-                  );
+                    );
 
-                  diseaseController.clear();
-                  medicineController.clear();
-                  dosageController.clear();
-                  feeController.clear();
+                    diseaseController.clear();
+                    medicineController.clear();
+                    dosageController.clear();
+                    feeController.clear();
 
-                  setState(() {
-                    selectedAppointmentId = null;
-                  });
+                    setState(() {
+                      selectedAppointmentId = null;
+                      selectedPatientId = null;
+                      selectedPatientName = null;
+                    });
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Error: $e")),
+                    );
+                  }
                 },
                 child: const Text("Save Prescription"),
               ),
